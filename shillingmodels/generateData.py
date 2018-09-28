@@ -1,3 +1,5 @@
+import sys
+sys.path.append("..")
 from averageAttack import AverageAttack
 from bandwagonAttack import BandWagonAttack
 from randomAttack import RandomAttack
