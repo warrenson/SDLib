@@ -80,15 +80,39 @@ class SDLib(object):
             #compute the mean error of k-fold cross validation
             self.measure = [dict(m)[i] for i in range(1,k+1)]
             res = []
-            pattern = re.compile('(\d+\.\d+)')
+            #pattern = re.compile('(\d+\.\d{2,10})')
             countPattern = re.compile('\d+\\n')
-            labelPattern = re.compile('\s\d{1}[^\.|\n|\d]')
+            #labelPattern = re.compile('\s+\d{1}[^\.|\n|\d]')
+            labelPattern = re.compile('^\s+(\d\S*)', re.M)
             labels = re.findall(labelPattern, self.measure[0])
             values = np.array([0]*9,dtype=float)
             count = np.array([0,0,0],dtype=int)
             for report in self.measure:
-                values += np.array(re.findall(pattern,report),dtype=float)
-                count+=np.array(re.findall(countPattern,report),dtype=int)
+                # Hacky iteration through reports to extract data
+                line_num = 0
+                for line in report.splitlines():
+                    line_num += 1
+                    line = line.strip()
+                    if (line_num == 3):
+                        cols = line.split()
+                        values[0] += float(cols[1])
+                        values[1] += float(cols[2])
+                        values[2] += float(cols[3])
+                        count[0] += int(cols[4])
+                    elif (line_num == 4):
+                        cols = line.split()
+                        values[3] += float(cols[1])
+                        values[4] += float(cols[2])
+                        values[5] += float(cols[3])
+                        count[1] += int(cols[4])
+                    elif (line_num == 8):
+                        cols = line.split()
+                        values[6] += float(cols[2])
+                        values[7] += float(cols[3])
+                        values[8] += float(cols[4])
+                        count[2] += int(cols[5])
+                #values += np.array(re.findall(pattern,report),dtype=float)
+                #count+=np.array(re.findall(countPattern,report),dtype=int)
             values/=k
             values=np.around(values,decimals=4)
             res.append('             precision  recall  f1-score  support\n\n')
