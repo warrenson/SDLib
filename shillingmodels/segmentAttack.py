@@ -10,6 +10,7 @@ from attack import Attack
 class SegmentAttack(Attack):
     def __init__(self,conf):
         super(SegmentAttack, self).__init__(conf)
+        raise NotImplementedError # not working 
 
     def insertSpam(self,startID=0):
         print 'Modeling bandwagon attack...'
@@ -45,6 +46,6 @@ class SegmentAttack(Attack):
         end = len(self.itemProfile) - markedItemsCount
         start = np.random.randint(0, high=end)
         markedIndexes =  range(start, start + markedItemsCount)
-        markedItems = [self.segmentItems[index][0] for index in markedIndexes]
+        markedItems = [self.itemProfile.iteritems()[index][0] for index in markedIndexes]
         return markedItems
 
