@@ -3,13 +3,23 @@ sys.path.append("..")
 from averageAttack import AverageAttack
 from bandwagonAttack import BandWagonAttack
 from randomAttack import RandomAttack
-from RR_Attack import RR_Attack
-from hybridAttack import HybridAttack
+#from RR_Attack import RR_Attack
+#from hybridAttack import HybridAttack
 
-#attack = RR_Attack('./config/config.conf')
-attack = RandomAttack('./config/config.conf')
+# Random attack
+attack = RandomAttack('./config/random_config.conf')
 attack.insertSpam()
-#attack.farmLink()
 attack.generateLabels('labels.txt')
 attack.generateProfiles('profiles.txt')
-#attack.generateSocialConnections('relations.txt')
+
+# Average attack
+attack = AverageAttack('./config/average_config.conf')
+attack.insertSpam()
+attack.generateLabels('labels.txt')
+attack.generateProfiles('profiles.txt')
+
+# Bandwagon attack
+attack = BandWagonAttack('./config/bandwagon_config.conf')
+attack.insertSpam()
+attack.generateLabels('labels.txt')
+attack.generateProfiles('profiles.txt')
