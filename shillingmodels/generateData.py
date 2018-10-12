@@ -6,8 +6,6 @@ from randomAttack import RandomAttack
 from reverseBandwagonAttack import ReverseBandWagonAttack
 from loveHateAttack import LoveHateAttack
 from hybridAttack import HybridAttack
-from segmentAttack import SegmentAttack
-#from RR_Attack import RR_Attack
 
 # Random attack
 attack = RandomAttack('./config/random_config.conf')
@@ -45,8 +43,3 @@ attack.insertSpam()
 attack.generateLabels('labels.txt')
 attack.generateProfiles('profiles.txt')
 
-# Segment attack
-attack = SegmentAttack('./config/segment_config.conf')
-attack.insertSpam()
-attack.generateLabels('labels.txt')
-attack.generateProfiles('profiles.txt')
