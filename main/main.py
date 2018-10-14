@@ -15,6 +15,8 @@ if __name__ == '__main__':
     print '3. SemiSAD\n'
     print 'Unsupervised Methods:'
     print '4. PCASelectUsers    5. FAP\n'
+    print 'Extra Methods:'
+    print '6. Kmeans\n'
     print '-'*80
     algor = -1
     conf = -1
@@ -45,6 +47,8 @@ if __name__ == '__main__':
     elif order == 5:
         conf = Config('../config/FAP.conf')
 
+    elif order == 6:
+        conf = Config('../config/Kmeans.conf')
     else:
         print 'Error num!'
         exit(-1)
