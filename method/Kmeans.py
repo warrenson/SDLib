@@ -5,7 +5,6 @@ from sklearn import preprocessing
 import numpy as np
 from sklearn import metrics
 import scipy
-from scipy.sparse import csr_matrix
 
 import math
 from scipy.cluster.vq import vq, kmeans, whiten
@@ -20,15 +19,10 @@ class Kmeans(SDetection):
 
     def readConfiguration(self):
         super(Kmeans, self).readConfiguration()
-        # K = top-K vals of cov
-        #self.k = int(self.config['kVals'])
 	self.depth = int(self.config['depth'])
-	self.p = 10
+	self.p = int(self.config['precision'])
         self.userNum = len(self.dao.trainingSet_u)
         self.itemNum = len(self.dao.trainingSet_i)
-       #if self.k >= min(self.userNum, self.itemNum):
-       #    self.k = 3
-       #    print '*** k-vals is more than the number of user or item, so it is set to', self.k
 
         # n = attack size or the ratio of spammers to normal users
         #self.n = float(self.config['attackSize'])
@@ -53,7 +47,7 @@ class Kmeans(SDetection):
 
 	print 'Builing Kmean model'
 
-	self.bdt = self.BKM(Umatrix, self.depth)
+	self.bdt = self.BKM(Umatrix, self.depth, range(len(Umatrix)) )
 
 
     ## bdt = bdt from BKM
@@ -62,36 +56,63 @@ class Kmeans(SDetection):
 	print 'predicting spammers'
 	bdt = self.bdt
 	p = self.p
-	
+	parent = bdt
+        # Left or right?
 	if bdt.leftICC > bdt.rightICC:
-	    minimum = bdt.leftICC - (bdt.rightICC *(p/100))
-	    maximum = bdt.leftICC + (bdt.rightICC *(p/100))
+            # Going left
+            #parent = bdt.left
+            parentICC = bdt.leftICC
 	    bdt = bdt.left
 	else:
-	    minimum = bdt.rightICC - (bdt.rightICC *(p/100))
-	    maximum = bdt.rightICC + (bdt.rightICC *(p/100))
+            # Going right
+            #parent = bdt.right
+            parentICC = bdt.rightICC
 	    bdt = bdt.right
-	while((bdt.leftICC and bdt.rightICC) not in range(minimum,maximum)):
-	    if bdt.leftICC > bdt.rightICC:
-		parent = bdt.left
-		if len(bdt.left) > 0:
-		    bdt = bdt.left
-	    else:
-		parent = bdt.right
-		if len(bdt.right) > 0:
-		    bdt = bdt.right
-	#print parent.shape
-	return parent
+
+        minimum = parentICC - (parentICC *(p/100))
+        maximum = parentICC + (parentICC *(p/100))
+	while(
+            (bdt.leftICC   < minimum or bdt.leftICC  > maximum) and
+            (bdt.rightICC  < minimum or bdt.rightICC > maximum)
+            ):
+            if bdt.leftICC > bdt.rightICC:
+                parent = bdt
+                parentICC = bdt.leftICC
+                if bdt.left: # if left subtree exists, go
+                    bdt = bdt.left
+                else:
+                    break
+            else:
+                parent = bdt
+                parentICC = bdt.rightICC
+                if bdt.right: # right subtree exists, go
+                    bdt = bdt.right
+                else:
+                    break
+            minimum = parentICC - (parentICC *(p/100))
+            maximum = parentICC + (parentICC *(p/100))
+
+        for s in parent.sidx:
+            self.predLabels[s] = 1 # mark shillers
+
+        # trueLabels
+        for user in self.dao.trainingSet_u:
+            userInd = self.dao.user[user]
+            self.testLabels[userInd] = int(self.labels[user])
+
+	return self.predLabels
 
 
-    class BDT(object):                      ## just a stupid container
-	def __init__(self):
-	    self.centers = None
-	    self.left = []
-	    self.leftICC = None
-	    self.right = []
-	    self.rightICC = None
-	    self.parent = None
+    class BDT:                      ## Tree node
+	def __init__(self, parent, sidx):
+	    self.centers = None # This node's data's centres, 2 x M matrix
+	    self.left = None # left subtree (BDT)
+	    self.leftICC = None # ICC of left subtree (float)
+	    self.right = None # right subtree (BDT)
+	    self.rightICC = None # ICC of right subtree (float)
+	    self.parent = parent # parent node (BDT)
+            self.data = [] # this node's data, M x k
+            self.sidx = sidx
 
 
     def PCC(self, M_i, C, mu_C, sig_C):
@@ -112,17 +133,12 @@ class Kmeans(SDetection):
 	sig_X = math.sqrt(sig_X)            ## std of 'x'
 
 	for i in range(0,n):
-	    val = (M_i[i]*C[i])-(n*mu_X*mu_C)
-	    print n
-	    print "rshape: ", val.shape
-	    r += val
+	    r += (M_i[i]*C[i])-(n*mu_X*mu_C)
 	r = r/((n-1)*sig_C*sig_X)
 
 	return r
 
     def ICC(self, C,M):
-        print C.shape
-        print M.shape
 	similarities = [0 for x in range(len(M))]
 	mu_C = 0.0
 	sig_C = 0.0
@@ -137,8 +153,8 @@ class Kmeans(SDetection):
 	sig_C = np.sqrt(sig_C)
 
 	for i in range(0,len(M)):
-	    #similarities[i] = self.PCC(M[i],C,mu_C,sig_C)
-	    similarities[i] = scipy.stats.mstats.pearsonr(M[i],C)
+	    similarities[i] = self.PCC(M[i],C,mu_C,sig_C)
+	    #similarities[i] = scipy.stats.mstats.pearsonr(M[i],C)
 
 	mu_s = 0.0
 	for i in range(0,len(M)):
@@ -151,26 +167,33 @@ class Kmeans(SDetection):
 ## N = stopping criterion, i.e. depth of bdt
 ## returns a bdt
 
-    def BKM(self, U,N):
-	bdt = self.BDT()
-	bdtleft = self.BDT()
-	bdtrght = self.BDT()
-	bdtleft.parent = bdt
-	bdtrght.parent = bdt
+    def BKM(self, U, N, sidx):
+	bdt = self.BDT(None, sidx)
+        bdt.data.append(U)
 	bdt.centers,_ = kmeans(U,2)
-        print bdt.centers.shape
+        bdt.left = self.BDT(bdt, [])
+        bdt.right = self.BDT(bdt, [])
+
+       #import sys
+       #print "---"
+       #for sh in sidx:
+       #    sys.stdout.write(str(sh))
+       #    sys.stdout.write(',')
+       #print "---"
 
 	idx,_ = vq(U,bdt.centers)
 	for i in range(0,len(U)):
 	    if idx[i] == 0:
-		bdt.left.append(U[i])
+		bdt.left.data.append(U[i])
+		bdt.left.sidx.append(sidx[i])
 	    else:
-		bdt.right.append(U[i])
-	bdt.leftICC = self.ICC(bdt.centers,bdt.left)
-	bdt.rightICC = self.ICC(bdt.centers,bdt.right)
-	if len(bdt.left) > N:
-	    bdtleft = self.BKM(bdt.left,N)
-	if len(bdt.right) > N:
-	    bdtrght = self.BKM(bdt.right,N)
+		bdt.right.data.append(U[i])
+		bdt.right.sidx.append(sidx[i])
+	bdt.leftICC = self.ICC(bdt.centers[0],bdt.left.data)
+	bdt.rightICC = self.ICC(bdt.centers[1],bdt.right.data)
+	if len(bdt.left.data) > N:
+	    bdt.left = self.BKM(bdt.left.data,N, bdt.left.sidx)
+	if len(bdt.right.data) > N:
+	    bdt.right = self.BKM(bdt.right.data,N, bdt.right.sidx)
 	return bdt
 
