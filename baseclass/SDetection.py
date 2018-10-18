@@ -66,9 +66,24 @@ class SDetection(object):
         # preict the ratings or item ranking
         print 'Predicting %s...' % (self.foldInfo)
         prediction = self.predict()
+
+        # output raw result of userid, true label, predicted label
+        userIDs = []
+        for user in self.dao.trainingSet_u:
+            userIDs.append(self.dao.getUserId(user))
+        userid = 0
+        raw = ''
+        for x,y in zip(self.testLabels, prediction):
+            raw += str(userIDs[userid])+','+str(x)+','+str(y)+"\n"
+            userid += 1
+        ###
+
         report = classification_report(self.testLabels, prediction, digits=4)
-        currentTime = currentTime = strftime("%Y-%m-%d %H-%M-%S", localtime(time()))
+
+        currentTime = currentTime = strftime("%Y-%m-%d-%H-%M-%S", localtime(time()))
         FileIO.writeFile(self.output['-dir'],self.algorName+'@'+currentTime+self.foldInfo,report)
+        FileIO.writeFile(self.output['-dir'],self.algorName+'@'+currentTime+self.foldInfo+'.raw-result.txt',raw)
+
         # save model
         if self.isSave:
             print 'Saving model %s...' % (self.foldInfo)
