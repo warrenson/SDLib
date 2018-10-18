@@ -68,7 +68,8 @@ foreach my $item ( sort keys %ratings ) {
 #   print "Pre Item Ratings Sum: $pre_sum\n";
 #   print "Post Item Ratings Sum: $post_sum\n";
 #   print "Differnce: $diff_sum\n";
-printf "%0.2f,%0.2f,%0.2f,%0.4f\n", $pre_sum, $post_sum, $diff_sum, $post_sum / $pre_sum;
+#printf "%0.2f,%0.2f,%0.2f,%0.4f\n", $pre_sum, $post_sum, $diff_sum, $post_sum / $pre_sum;
+printf "%0.4f\n", $post_sum / $pre_sum;
 
 exit 0;
 
